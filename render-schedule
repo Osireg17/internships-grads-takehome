@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Launcher for the render-schedule CLI. Run `mvn package` first to build the jar.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAR="$DIR/target/render-schedule.jar"
+
+if [[ ! -f "$JAR" ]]; then
+  echo "render-schedule: $JAR not found. Build it first with: mvn package" >&2
+  exit 1
+fi
+
+exec java -jar "$JAR" "$@"
