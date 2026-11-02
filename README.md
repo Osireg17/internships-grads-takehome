@@ -21,6 +21,32 @@ Add `-DskipTests` to skip the tests. The `./render-schedule` launcher needs the 
 
 ## Run
 
+### Example input
+
+`examples/schedule.json` is a single object holding the rotation rule:
+
+```json
+{
+  "users": ["alice", "bob", "charlie"],
+  "handover_start_at": "2026-11-06T17:00:00Z",
+  "handover_interval_days": 7
+}
+```
+
+`examples/overrides.json` is an array of overrides. Here Charlie covers 5pm to 10pm on Monday 9 November:
+
+```json
+[
+  {
+    "user": "charlie",
+    "start_at": "2026-11-09T17:00:00Z",
+    "end_at": "2026-11-09T22:00:00Z"
+  }
+]
+```
+
+### Command and output
+
 ```console
 $ ./render-schedule \
     --schedule=examples/schedule.json \
@@ -67,6 +93,22 @@ Any bad input prints `render-schedule: <message>` to stderr, writes nothing to s
 
 Everything is a pure function over immutable values. Only `Main` and `JsonWriter` touch the outside world.
 
+### Worked example
+
+The README example, one stage at a time. Alice, Bob and Charlie rotate weekly from 6 Nov 17:00, and Charlie has an override on 9 Nov from 17:00 to 22:00.
+
+```text
+            6 Nov 17:00      9 Nov 17:00   22:00    13 Nov 17:00           20 Nov 17:00
+            |                |             |        |                      |
+1 shifts    [ alice ...................................... ][ bob ........... ]
+2 overrides [ alice ......... ][ charlie ][ alice ...... ][ bob ........... ]
+3 window    nothing to cut: the window is exactly 6 Nov 17:00 to 20 Nov 17:00
+```
+
+1. `ShiftWriter` produces two whole shifts, Alice then Bob.
+2. `OverrideWriter` splits Alice's shift around Charlie's override: before, override, after.
+3. `WindowWriter` clamps to `--from` and `--until`. With a narrower window, the first and last entries would be shortened and anything outside dropped.
+
 ### Data types
 
 | Type | Shape | Notes |
@@ -97,24 +139,3 @@ Everything is a pure function over immutable values. Only `Main` and `JsonWriter
 
 - Overlapping overrides are accepted rather than rejected; the task guarantees they don't happen.
 - `--from` before `handover_start_at` and `--from == --until` are errors rather than being clamped or printing `[]`.
-
-## Project layout
-
-```text
-render-schedule                  launcher script (runs target/render-schedule.jar)
-pom.xml                          Maven build (Java 17 target, Jackson, JUnit 5)
-examples/                        sample schedule and override files
-src/main/java/com/takehome/schedule/
-    Main.java                    flags, pipeline, error handling
-    Models/
-        Entry.java, Schedule.java    immutable value types
-    ScheduleWriters/
-        ShiftWriter.java         base rotation
-        OverrideWriter.java      overrides on top of the rotation
-        WindowWriter.java        cut to from/until
-        JsonWriter.java          read and validate input, write output
-src/test/java/com/takehome/schedule/
-    Models/                      EntryTest, ScheduleTest
-    ScheduleWriters/             one test class per writer
-    RenderScheduleIntegrationTest.java   end to end
-```
