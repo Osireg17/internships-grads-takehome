@@ -109,6 +109,34 @@ The README example, one stage at a time. Alice, Bob and Charlie rotate weekly fr
 2. `OverrideWriter` splits Alice's shift around Charlie's override: before, override, after.
 3. `WindowWriter` clamps to `--from` and `--until`. With a narrower window, the first and last entries would be shortened and anything outside dropped.
 
+### How `OverrideWriter` handles the main cases
+
+`[ ]` is one entry. Base shifts here are Alice, then Bob, then Charlie.
+
+```text
+1. Override in the middle of a shift: the shift splits into three
+   base      [alice -----------------------------]
+   override                [charlie]
+   result    [alice -------][charlie][alice ------]
+
+2. Override spanning two shifts: it cuts the tail of one and the head of the next
+   base      [alice ----------------][bob ---------]
+   override                  [charlie -----]
+   result    [alice ---------][charlie -----][bob --]
+
+3. Override by the next shift's user: the two entries merge into one
+   base      [alice ----------------][bob ---------]
+   override                      [bob ]
+   result    [alice -------------][bob -------------]
+
+4. One-person rotation, override ending on a shift boundary: the next shift is not glued on
+   base      [alice ---------------][alice --------]
+   override           [alice -------]
+   result    [alice ---------------][alice --------]
+```
+
+Same-user neighbours merge only where an override created the adjacency (case 3). Untouched back-to-back shifts of one user stay separate (case 4).
+
 ### Data types
 
 | Type | Shape | Notes |
